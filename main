@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BIRD GAME 3 - SPEED UPDATE</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        canvas { display: block; }
+        
+        /* UI LAYER */
+        #ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        .hud-row { display: flex; justify-content: space-between; padding: 20px; align-items: flex-start; }
+        
+        .stat {
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            padding: 8px 15px;
+            font-weight: bold;
+            font-size: 1rem;
+            border-radius: 8px;
+            backdrop-filter: blur(4px);
+            border-left: 4px solid #FFA500;
+            text-shadow: 1px 1px 0 #000;
+            margin-bottom: 10px;
+        }
+
+        /* BARS CONTAINER */
+        #bars-container {
+            display: flex; flex-direction: column; gap: 5px;
+        }
+
+        /* HEALTH BAR */
+        .bar-wrap {
+            width: 300px; height: 20px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid white;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        #health-fill {
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, #ff3333, #ff0000);
+            transition: width 0.2s;
+        }
+        
+        /* STAMINA BAR */
+        #stamina-fill {
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, #00ffff, #0088ff);
+            transition: width 0.1s linear;
+        }
+        
+        .bar-text {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.7rem; color: white;
+            font-weight: bold; text-shadow: 1px 1px 2px black; letter-spacing: 1px;
+        }
+
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 20px; height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        
+        .attack-anim { 
+            border-color: red !important; 
+            transform: translate(-50%, -50%) scale(0.5) !important; 
+            background: rgba(255, 0, 0, 0.3);
+        }
+
+        /* DAMAGE FLASH */
+        #damage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: red; opacity: 0; pointer-events: none;
+            transition: opacity 0.1s;
+        }
+
+        /* SCREEN OVERLAY */
+        #screen-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 4rem; margin: 0;
+            background: linear-gradient(to bottom, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0px 4px 0px rgba(0,0,0,0.5));
+            letter-spacing: -2px;
+        }
+
+        .btn-main {
+            margin-top: 30px; padding: 15px 50px;
+            font-size: 1.5rem; font-weight: 900;
+            background: #FFA500; border: 3px solid #fff; color: black;
+            cursor: pointer; border-radius: 50px;
+            box-shadow: 0 0 20px rgba(255, 165, 0, 0.6);
+            transition: transform 0.1s, background 0.1s;
+            text-transform: uppercase;
+        }
+        .btn-main:hover { transform: scale(1.05); background: #ffb733; }
+        .btn-main:active { transform: scale(0.95); }
+
+        /* DONATION BOX */
+        .support-box {
+            margin-top: 40px;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.2);
+            width: 90%;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+        }
+
+        .shopier-btn {
+            display: block; width: 100%; padding: 12px;
+            background: linear-gradient(45deg, #E53935, #D32F2F); 
+            color: white;
+            text-decoration: none; font-weight: bold;
+            border-radius: 8px; margin-bottom: 10px;
+            box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: opacity 0.2s;
+        }
+        .shopier-btn:hover { opacity: 0.9; }
+        
+        .crypto-row {
+            display: flex; gap: 5px; margin-top: 10px;
+        }
+        .crypto-input {
+            flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #555;
+            color: #ddd; padding: 8px; border-radius: 4px;
+            font-family: monospace; font-size: 0.8rem;
+            text-align: center;
+        }
+        .copy-btn {
+            background: #444; color: white; border: 1px solid #666;
+            padding: 0 10px; border-radius: 4px; cursor: pointer;
+            font-weight: bold; font-size: 0.8rem;
+        }
+        .copy-btn:hover { background: #555; }
+
+        #kill-msg {
+            position: absolute; top: 30%; left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            color: #FFD700; font-weight: 900; font-size: 3rem;
+            text-shadow: 3px 3px 0 #000;
+            pointer-events: none;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        #controls-hint {
+            position: absolute; bottom: 20px; width: 100%; text-align: center;
+            color: rgba(255,255,255,0.6); font-size: 0.9rem;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+    </style>
+    <!-- Load Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Load Simplex Noise for Terrain -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+</head>
+<body>
+
+    <div id="damage-overlay"></div>
+
+    <div id="ui">
+        <div class="hud-row">
+            <div id="bars-container">
+                <!-- Health -->
+                <div class="bar-wrap">
+                    <div id="health-fill"></div>
+                    <div class="bar-text" id="health-text">HP 100%</div>
+                </div>
+                <!-- Stamina -->
+                <div class="bar-wrap" style="height: 15px; width: 250px;">
+                    <div id="stamina-fill"></div>
+                    <div class="bar-text" style="font-size: 0.6rem;">ENERGY</div>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div class="stat">KILLS: <span id="score">0</span></div>
+                <div class="stat">ENEMIES: <span id="enemy-count">0</span></div>
+            </div>
+        </div>
+        <div id="crosshair"></div>
+        <div id="kill-msg">TALON STRIKE!</div>
+        <div class="hud-row" style="align-items: flex-end;">
+            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">
+                <b>BIRD GAME 3</b><br>
+                v3.4 SPEED UPDATE<br>
+                FPS: <span id="fps">60</span>
+            </div>
+        </div>
+        <div id="controls-hint" style="display:none;">WASD Fly • SHIFT Boost • CLICK Attack</div>
+    </div>
+
+    <div id="screen-overlay">
+        <h1>BIRD GAME 3</h1>
+        <p style="color: #aaa; letter-spacing: 2px; margin-bottom: 20px;">SURVIVAL MODE</p>
+        <button class="btn-main" onclick="startGame()">START HUNT</button>
+        <p id="death-msg" style="color: red; font-size: 1.2rem; font-weight: bold; margin-top: 10px; display: none;">YOU DIED</p>
+        
+        <!-- MONETIZATION SECTION -->
+        <div class="support-box">
+            <p style="margin: 0 0 15px 0; font-size: 0.9rem; color: #FFA500; font-weight: bold;">⚠️ SUPPORT THE DEV (SERVER COSTS)</p>
+            
+            <!-- SHOPIER LINK -->
+            <a href="YOUR_SHOPIER_LINK_HERE" target="_blank" class="shopier-btn">
+                ☕ BUY ME A COFFEE (50₺)
+            </a>
+
+            <!-- CRYPTO -->
+            <div class="crypto-row">
+                <input type="text" value="YOUR_USDT_TRC20_ADDRESS" readonly class="crypto-input" onclick="this.select()">
+                <button class="copy-btn" onclick="copyCrypto(this)">USDT</button>
+            </div>
+            <div class="crypto-row">
+                <input type="text" value="YOUR_SOLANA_ADDRESS" readonly class="crypto-input" onclick="this.select()">
+                <button class="copy-btn" onclick="copyCrypto(this)">SOL</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURATION
+        const CONFIG = {
+            baseSpeed: 40,
+            boostSpeed: 100, // Fast!
+            turnSpeed: 1.5,
+            attackRange: 25, 
+            enemyCount: 40,
+            worldSize: 1500,
+            maxHealth: 100,
+            maxStamina: 100,
+            staminaDrain: 30, // Drains in ~3 seconds
+            staminaRegen: 15,
+            enemyAggroRange: 300, 
+            enemyDamage: 10
+        };
+
+        let scene, camera, renderer, clock;
+        let player, terrain;
+        let enemies = [];
+        let gameActive = false;
+        let score = 0;
+        let health = 100;
+        let stamina = 100;
+        let isAttacking = false;
+        let frames = 0, lastTime = 0;
+        let damageCooldown = 0;
+        
+        // Input State
+        const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
+        
+        const simplex = new SimplexNoise();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); 
+            scene.fog = new THREE.Fog(0x87CEEB, 200, 900); 
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 5, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(300, 500, 300);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 1500;
+            const d = 500;
+            dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
+            scene.add(dirLight);
+
+            createInfiniteTerrain();
+            createForest();
+
+            // Player is Brown/Gold Eagle
+            player = createRealisticBird(0x8B4513, 0xFFD700); 
+            scene.add(player);
+
+            for(let i=0; i<CONFIG.enemyCount; i++) spawnEnemy();
+
+            // INPUT LISTENERS
+            document.addEventListener('keydown', (e) => {
+                const key = e.key.toLowerCase();
+                if(key === 'w') keys.w = true;
+                if(key === 'a') keys.a = true;
+                if(key === 's') keys.s = true;
+                if(key === 'd') keys.d = true;
+                if(key === ' ') keys.space = true;
+                if(key === 'shift') keys.shift = true;
+            });
+            document.addEventListener('keyup', (e) => {
+                const key = e.key.toLowerCase();
+                if(key === 'w') keys.w = false;
+                if(key === 'a') keys.a = false;
+                if(key === 's') keys.s = false;
+                if(key === 'd') keys.d = false;
+                if(key === ' ') keys.space = false;
+                if(key === 'shift') keys.shift = false;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+                mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+            });
+
+            document.addEventListener('mousedown', attack);
+            document.addEventListener('touchstart', attack);
+            window.addEventListener('resize', onResize);
+
+            clock = new THREE.Clock();
+            animate();
+        }
+
+        // --- BIRD GENERATOR ---
+        function createRealisticBird(bodyColor, beakColor) {
+            const birdGroup = new THREE.Group();
+
+            const feathersMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 1.0, flatShading: true }); 
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 1.0 });
+            const beakMat = new THREE.MeshStandardMaterial({ color: beakColor, roughness: 0.2 });
+
+            // Body
+            const body = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 7), feathersMat);
+            body.scale.set(1, 0.8, 2.0);
+            body.castShadow = true;
+            birdGroup.add(body);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.75, 7, 7), feathersMat);
+            head.position.set(0, 0.6, 1.6);
+            birdGroup.add(head);
+
+            // Beak
+            const beak = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.8, 8), beakMat);
+            beak.geometry.rotateX(Math.PI / 2.2);
+            beak.position.set(0, 0.5, 2.2);
+            birdGroup.add(beak);
+
+            // Wings
+            const lWingGroup = new THREE.Group(); lWingGroup.position.set(-0.8, 0.2, 0.5);
+            const lWingMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 2), darkMat);
+            lWingMesh.position.set(-2, 0, 0);
+            lWingGroup.add(lWingMesh); lWingGroup.name = "leftWing"; birdGroup.add(lWingGroup);
+
+            const rWingGroup = new THREE.Group(); rWingGroup.position.set(0.8, 0.2, 0.5);
+            const rWingMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 2), darkMat);
+            rWingMesh.position.set(2, 0, 0);
+            rWingGroup.add(rWingMesh); rWingGroup.name = "rightWing"; birdGroup.add(rWingGroup);
+
+            // Talons
+            const talonGroup = new THREE.Group(); talonGroup.name = "talons";
+            const tGeo = new THREE.ConeGeometry(0.1, 0.6, 4); tGeo.rotateX(-Math.PI/4);
+            const t1 = new THREE.Mesh(tGeo, beakMat); t1.position.set(-0.5, -0.8, 0.5);
+            const t2 = new THREE.Mesh(tGeo, beakMat); t2.position.set(0.5, -0.8, 0.5);
+            talonGroup.add(t1); talonGroup.add(t2);
+            talonGroup.scale.set(0,0,0);
+            birdGroup.add(talonGroup);
+
+            return birdGroup;
+        }
+
+        function createForest() {
+            const treeCount = 1000;
+            const trunkGeo = new THREE.CylinderGeometry(0.5, 1.5, 8, 5);
+            const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5D4037 });
+            const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, treeCount);
+            const leavesGeo = new THREE.ConeGeometry(4, 10, 6);
+            const leavesMat = new THREE.MeshLambertMaterial({ color: 0x2E7D32 });
+            const leaves = new THREE.InstancedMesh(leavesGeo, leavesMat, treeCount);
+
+            const dummy = new THREE.Object3D();
+            const color = new THREE.Color();
+
+            for (let i = 0; i < treeCount; i++) {
+                const x = (Math.random() - 0.5) * CONFIG.worldSize * 2.5;
+                const z = (Math.random() - 0.5) * CONFIG.worldSize * 2.5;
+                const y = getTerrainHeight(x, z);
+
+                const scale = 0.8 + Math.random() * 1.5;
+                dummy.position.set(x, y + (4 * scale), z);
+                dummy.scale.set(scale, scale, scale);
+                dummy.rotation.set(0, Math.random() * Math.PI, 0);
+                dummy.updateMatrix();
+                trunks.setMatrixAt(i, dummy.matrix);
+
+                dummy.position.set(x, y + (9 * scale), z);
+                dummy.updateMatrix();
+                leaves.setMatrixAt(i, dummy.matrix);
+                
+                const ran = Math.random();
+                if(ran > 0.8) color.setHex(0xA0522D); 
+                else if(ran > 0.6) color.setHex(0x556B2F);
+                else color.setHex(0x2E7D32);
+                leaves.setColorAt(i, color);
+            }
+            scene.add(trunks); scene.add(leaves);
+        }
+
+        function createInfiniteTerrain() {
+            const size = CONFIG.worldSize * 3;
+            const geo = new THREE.PlaneGeometry(size, size, 64, 64);
+            geo.rotateX(-Math.PI / 2);
+            const pos = geo.attributes.position;
+            for(let i=0; i<pos.count; i++) {
+                pos.setY(i, getTerrainHeight(pos.getX(i), pos.getZ(i)));
+            }
+            geo.computeVertexNormals();
+            const mat = new THREE.MeshStandardMaterial({ color: 0x558B2F, roughness: 0.9, flatShading: true });
+            terrain = new THREE.Mesh(geo, mat);
+            terrain.receiveShadow = true;
+            scene.add(terrain);
+        }
+
+        function getTerrainHeight(x, z) {
+            const large = simplex.noise2D(x * 0.001, z * 0.001) * 60;
+            const small = simplex.noise2D(x * 0.01, z * 0.01) * 5;
+            return Math.max(-10, large + small);
+        }
+
+        // --- ENEMY LOGIC ---
+
+        function spawnEnemy() {
+            // Random Enemy Types
+            const types = [
+                { color: 0xD32F2F, beak: 0x000000, speed: 12 }, // Red Drone (Slower)
+                { color: 0x111111, beak: 0x555555, speed: 15 }, // Black Raven (Medium)
+                { color: 0xA52A2A, beak: 0xFFA500, speed: 10 }  // Brown Falcon (Slow)
+            ];
+            const type = types[Math.floor(Math.random() * types.length)];
+
+            const mesh = createRealisticBird(type.color, type.beak);
+            
+            const range = CONFIG.worldSize;
+            mesh.position.set(
+                (Math.random() - 0.5) * range,
+                50 + Math.random() * 100,
+                (Math.random() - 0.5) * range
+            );
+
+            scene.add(mesh);
+            
+            enemies.push({ 
+                mesh: mesh, 
+                baseSpeed: type.speed,
+                speed: type.speed,
+                state: 'ROAM', 
+                targetDir: new THREE.Vector3(1,0,0),
+                changeDirTimer: 0
+            });
+            
+            updateUI();
+        }
+
+        function takeDamage() {
+            if(damageCooldown > 0) return;
+            health -= CONFIG.enemyDamage;
+            damageCooldown = 1.0; 
+            
+            const overlay = document.getElementById('damage-overlay');
+            overlay.style.opacity = 0.5;
+            setTimeout(() => overlay.style.opacity = 0, 100);
+            
+            document.getElementById('health-fill').style.width = health + '%';
+            document.getElementById('health-text').innerText = 'HP ' + health + '%';
+
+            if(health <= 0) gameOver();
+        }
+
+        function attack() {
+            if (!gameActive || isAttacking) return;
+            isAttacking = true;
+
+            const ch = document.getElementById('crosshair');
+            ch.classList.add('attack-anim');
+            setTimeout(() => ch.classList.remove('attack-anim'), 200);
+
+            const talons = player.getObjectByName("talons");
+            if(talons) {
+                let t = 0;
+                const attackInterval = setInterval(() => {
+                    t += 0.2;
+                    const scale = Math.sin(t * Math.PI);
+                    talons.scale.set(scale, scale, scale);
+                    talons.position.z = 2 + (scale * 2);
+                    if(t >= 1) {
+                        clearInterval(attackInterval);
+                        talons.scale.set(0,0,0);
+                        isAttacking = false;
+                    }
+                }, 30);
+            } else {
+                setTimeout(() => isAttacking = false, 300);
+            }
+
+            // Hit Check
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                const dist = player.position.distanceTo(enemy.mesh.position);
+                const enemyDir = enemy.mesh.position.clone().sub(player.position).normalize();
+                const playerDir = new THREE.Vector3(0,0,-1).applyQuaternion(player.quaternion);
+                const angle = playerDir.angleTo(enemyDir);
+
+                if (dist < CONFIG.attackRange && angle < 1.0) {
+                    createExplosion(enemy.mesh.position);
+                    scene.remove(enemy.mesh);
+                    enemies.splice(i, 1);
+                    score++;
+                    showKillMsg();
+                    updateUI();
+                    setTimeout(spawnEnemy, 2000); 
+                }
+            }
+        }
+
+        function createExplosion(pos) {
+            const count = 10;
+            const geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            
+            for(let i=0; i<count; i++) {
+                const p = new THREE.Mesh(geo, mat);
+                p.position.copy(pos);
+                p.userData = { vel: new THREE.Vector3((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)).normalize().multiplyScalar(20) };
+                scene.add(p);
+                const startTime = Date.now();
+                function animatePart() {
+                    const progress = (Date.now() - startTime) / 500;
+                    if(progress >= 1) { scene.remove(p); return; }
+                    p.position.addScaledVector(p.userData.vel, 0.05);
+                    p.rotation.x += 0.2;
+                    p.scale.setScalar(1 - progress);
+                    requestAnimationFrame(animatePart);
+                }
+                animatePart();
+            }
+        }
+
+        function update() {
+            if(!gameActive) {
+                const t = clock.getElapsedTime();
+                camera.position.x = Math.sin(t * 0.1) * 60;
+                camera.position.z = Math.cos(t * 0.1) * 60;
+                camera.position.y = 40;
+                camera.lookAt(0, 20, 0);
+                return;
+            }
+
+            const dt = clock.getDelta();
+            if(damageCooldown > 0) damageCooldown -= dt;
+
+            // --- STAMINA SYSTEM (FIXED) ---
+            let currentSpeed = CONFIG.baseSpeed;
+            
+            // Logic: If holding shift, try to sprint. 
+            // If stamina runs out while holding shift, you drop to normal speed AND stop regenerating.
+            if (keys.shift) {
+                if (stamina > 0) {
+                    currentSpeed = CONFIG.boostSpeed;
+                    stamina -= CONFIG.staminaDrain * dt;
+                }
+            } else {
+                // Only regenerate when NOT holding shift
+                stamina += CONFIG.staminaRegen * dt;
+            }
+
+            // Clamp Stamina
+            stamina = Math.max(0, Math.min(CONFIG.maxStamina, stamina));
+            
+            // Visual Update
+            const stamBar = document.getElementById('stamina-fill');
+            stamBar.style.width = stamina + '%';
+            
+            // Change color if exhausted (Visual Feedback)
+            if(stamina <= 1 && keys.shift) {
+                stamBar.style.background = '#555'; // Grayed out when empty & trying to sprint
+            } else {
+                stamBar.style.background = 'linear-gradient(90deg, #00ffff, #0088ff)';
+            }
+
+            // --- MOVEMENT (WASD) ---
+            
+            // Turn (A/D)
+            if (keys.a) {
+                player.rotateY(CONFIG.turnSpeed * dt);
+                player.rotation.z += 2 * dt; // Bank Left
+            }
+            if (keys.d) {
+                player.rotateY(-CONFIG.turnSpeed * dt);
+                player.rotation.z -= 2 * dt; // Bank Right
+            }
+
+            // Pitch (W/S)
+            if (keys.w) player.rotateX(-CONFIG.turnSpeed * dt); // Dive
+            if (keys.s) player.rotateX(CONFIG.turnSpeed * dt);  // Climb
+
+            // Levitate (Space)
+            if (keys.space) {
+                player.position.y += currentSpeed * 0.5 * dt;
+            }
+
+            // Auto-Leveling
+            if (!keys.a && !keys.d) {
+                player.rotation.z *= 0.95; // Flatten Roll
+            }
+            // Auto-Forward
+            if (isAttacking) currentSpeed *= 1.2;
+            player.translateZ(-currentSpeed * dt);
+
+            // Ground & Ceiling collision
+            const terrainH = getTerrainHeight(player.position.x, player.position.z);
+            if (player.position.y < terrainH + 5) {
+                player.position.y = terrainH + 5; player.rotation.x = Math.max(player.rotation.x, 0.2); 
+            }
+            if(player.position.y > 600) player.position.y = 600;
+
+            // Wings
+            const lw = player.getObjectByName("leftWing"); const rw = player.getObjectByName("rightWing");
+            if(lw && rw) {
+                // Flap if turning, climbing, levitating or boosting
+                const isFlying = keys.w || keys.s || keys.a || keys.d || keys.space || keys.shift;
+                const flapSpeed = isFlying ? (keys.shift ? 25 : 15) : 2; 
+                const flapAmp = isFlying ? 0.6 : 0.1;
+
+                const flap = Math.sin(clock.elapsedTime * flapSpeed) * flapAmp;
+                lw.rotation.z = flap; rw.rotation.z = -flap;
+            }
+
+            // Camera
+            // Pull camera back further when boosting
+            const camZ = keys.shift ? 25 : 18;
+            const camTarget = player.position.clone().add(new THREE.Vector3(0, 6, camZ).applyMatrix4(player.matrixWorld).sub(player.position));
+            camera.position.lerp(camTarget, 0.1);
+            camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 0, -50).applyQuaternion(player.quaternion)));
+
+            // Enemy AI
+            enemies.forEach(e => {
+                const distToPlayer = e.mesh.position.distanceTo(player.position);
+                
+                // State Logic
+                if (distToPlayer < CONFIG.enemyAggroRange) {
+                    e.state = 'CHASE';
+                    e.mesh.lookAt(player.position); 
+                    e.speed = e.baseSpeed * 3.0; // UPDATED: 3x Speed when attacking!
+                } else {
+                    e.state = 'ROAM';
+                    e.speed = e.baseSpeed;
+                    
+                    e.changeDirTimer -= dt;
+                    if(e.changeDirTimer <= 0) {
+                        e.changeDirTimer = 3 + Math.random() * 5;
+                        e.targetDir.set((Math.random()-0.5), (Math.random()-0.2), (Math.random()-0.5)).normalize();
+                    }
+                    e.mesh.rotation.y += (Math.random()-0.5) * dt; 
+                }
+
+                e.mesh.translateZ(-e.speed * dt); 
+
+                // Attack Player
+                if (distToPlayer < 5) {
+                    takeDamage();
+                }
+
+                // Wings
+                const elw = e.mesh.getObjectByName("leftWing"); const erw = e.mesh.getObjectByName("rightWing");
+                if(elw && erw) {
+                    const eFlap = Math.sin(clock.elapsedTime * 20) * 0.6;
+                    elw.rotation.z = eFlap; erw.rotation.z = -eFlap;
+                }
+            });
+        }
+
+        function startGame() {
+            document.getElementById('screen-overlay').style.display = 'none';
+            document.getElementById('death-msg').style.display = 'none';
+            document.getElementById('controls-hint').style.display = 'block';
+            gameActive = true;
+            health = 100;
+            stamina = 100;
+            score = 0;
+            player.position.set(0, 150, 0);
+            player.rotation.set(0, 0, 0);
+            updateUI();
+            
+            document.getElementById('health-fill').style.width = '100%';
+            document.getElementById('health-text').innerText = 'HP 100%';
+        }
+
+        function gameOver() {
+            gameActive = false;
+            document.getElementById('screen-overlay').style.display = 'flex';
+            document.getElementById('death-msg').style.display = 'block';
+            document.querySelector('.btn-main').innerText = "TRY AGAIN";
+        }
+
+        function showKillMsg() {
+            const el = document.getElementById('kill-msg');
+            el.style.transform = "translate(-50%, -50%) scale(1.2)";
+            setTimeout(() => el.style.transform = "translate(-50%, -50%) scale(0)", 800);
+        }
+
+        function updateUI() {
+            document.getElementById('score').innerText = score;
+            document.getElementById('enemy-count').innerText = enemies.length;
+        }
+
+        function copyCrypto(btn) {
+            const input = btn.previousElementSibling;
+            input.select();
+            navigator.clipboard.writeText(input.value);
+            const originalText = btn.innerText;
+            btn.innerText = "COPIED";
+            btn.style.background = "#4CAF50";
+            setTimeout(() => { btn.innerText = originalText; btn.style.background = "#444"; }, 2000);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
